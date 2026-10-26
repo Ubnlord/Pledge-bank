@@ -186,10 +186,10 @@ using (
 );
 
 -- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.profiles from public, anon, authenticated;
+revoke all on public.bank_accounts from public, anon, authenticated;
+revoke all on public.bank_transactions from public, anon, authenticated;
 revoke all on public.ledger_entries from public, anon, authenticated;
-revoke all on public.bank_accounts from anon;
-revoke all on public.bank_transactions from anon;
-revoke all on public.profiles from anon;
 
 grant select on public.profiles to authenticated;
 grant update (display_name, phone) on public.profiles to authenticated;
