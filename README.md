@@ -14,7 +14,7 @@ This repository contains the public-facing PLEDGE BANK website preview. The inte
 The current site is static HTML, CSS, and JavaScript. Open `public/index.html` in a browser or serve the `public/` directory with any static HTTP server.
 
 ## Important security and launch status
-**This is a front-end preview, not a functioning bank.** Login, account creation, password recovery, payments, balances, transfers, cards, and support submissions are not connected to a backend. Forms explicitly show a preview notice and do not transmit or persist submitted data. Numbers and card details on the landing page are illustrative only.
+**This is not a complete operational bank.** Customer sign-in, registration, password recovery, profile/account/transaction reads, and ledger-derived balances are connected to the dedicated Supabase project. Transfers, deposits, withdrawals, card services, Bitcoin orders, and customer support submissions are not enabled. Landing-page marketing visuals remain illustrative.
 
 Do not collect real customer information until a production backend and security controls are implemented and independently tested. Before enabling banking services, implement and verify:
 - A trusted, appropriately licensed banking/payment partner and legal/compliance disclosures
@@ -32,10 +32,10 @@ Do not collect real customer information until a production backend and security
 - `docs/backend-setup.md` — staged setup and verification notes.
 - `backend/config.env.example` — environment-variable names only; no credentials.
 
-**Supabase schema deployed:** the initial migration was applied to the dedicated PLEDGE BANK project on 2026-10-26 and verified by listing the four tables, their columns, RLS status, and the migration record. A foreign-key performance index was added in a follow-up migration. The two-user isolation tests have not yet been run. Supabase Auth is not yet wired to the website, and no financial operations are enabled.
+**Supabase schema deployed:** the initial migration was applied to the dedicated PLEDGE BANK project on 2026-10-26 and verified by listing the four tables, their columns, RLS status, and the migration record. A foreign-key performance index was added in a follow-up migration. The two-user isolation tests have not yet been run. Supabase Auth is wired in the website, but email/redirect configuration and end-to-end authentication tests remain outstanding. No financial operations are enabled.
 
 ## Next implementation phase
-Configure Auth settings and email redirects, wire registration/login/password recovery to Supabase Auth, and pass the two-user isolation tests in `docs/database-verification.md`. Then implement an authenticated customer dashboard. Server-side financial workflows must be separately designed and tested before any deposits, transfers, or balance displays become live. The separate PLEDGE BANK admin panel will be developed in its own repository and must use server-enforced administrator authorization, separate from ordinary customer access.
+Configure Auth settings and email redirects, test registration/login/password recovery, and pass the two-user isolation tests in `docs/database-verification.md`. Server-side financial workflows must be separately designed and tested before any deposits, transfers, or balance displays become live. The separate PLEDGE BANK admin panel will be developed in its own repository and must use server-enforced administrator authorization, separate from ordinary customer access.
 
 ## Repository layout
 - `public/index.html` — public landing page
