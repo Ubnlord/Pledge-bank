@@ -25,3 +25,12 @@ No balance column is stored in the browser-facing schema. A future balance must 
 
 ## Admin panel separation
 The admin panel will live in a separate repository. It must use server-enforced admin authorization and a separate role-management process. Never trust user-editable Auth metadata to decide whether someone is an administrator. Customer policies in this schema intentionally contain no admin bypass.
+
+
+## Customer dashboard integration (2026-10-26)
+
+- Website pages `public/pages/login.html`, `register.html`, `forgot-password.html`, `reset-password.html`, and `dashboard.html` use Supabase Auth and the dedicated project publishable key.
+- Dashboard reads profile/account/transaction rows using existing RLS policies and calls `get_my_account_balances()`, which sums only ledger entries belonging to posted transactions. It displays no fabricated balances.
+- Migration `20261026_usd_eur_dashboard_balances` was applied to production: currency fields now default to USD and database constraints permit only USD/EUR. The RPC returns only balances for accounts owned by `auth.uid()`; execute is granted only to authenticated users.
+- Before customer rollout, configure Auth Site URL and Redirect URLs for the deployed origin and its dashboard/reset-password pages; confirm email delivery, password recovery, and row isolation with two separate test users.
+- No account provisioning, transfers, deposits, withdrawals, card services, or Bitcoin purchases are enabled. No client can write account, transaction, or ledger rows. A ledger-backed dashboard is not proof of a complete or regulated banking service.
