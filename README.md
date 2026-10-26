@@ -43,3 +43,13 @@ Configure Auth settings and email redirects, wire registration/login/password re
 - `public/assets/js/main.js` — navigation and non-submitting demo form messaging
 - `public/assets/images/logo.svg` — brand mark
 - `public/pages/` — public informational and authentication preview pages
+
+## Publish on GitHub Pages
+
+The repository includes a GitHub Actions workflow at `.github/workflows/deploy-pages.yml` that publishes the contents of `public/` whenever files in that folder change on `main`, and supports manual runs.
+
+- Expected website URL: https://ubnlord.github.io/Pledge-bank/
+- In GitHub, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions** if it is not already selected.
+- Then open **Actions → Deploy PLEDGE BANK to GitHub Pages** to check the deployment result. The first deployment may take a few minutes.
+
+The hosted site remains a non-functional visual preview; authentication and banking operations are not enabled. See the security and launch notes above before sharing it with customers.
