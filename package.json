@@ -1,0 +1,10 @@
+{
+  "name": "pledge-bank",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PLEDGE BANK public website foundation",
+  "scripts": {
+    "start": "npx --yes serve public",
+    "preview": "npx --yes serve public"
+  }
+}
