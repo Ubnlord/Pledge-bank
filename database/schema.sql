@@ -61,7 +61,7 @@ create table if not exists public.bank_transactions (
   transaction_type public.bank_transaction_type not null,
   status public.bank_transaction_status not null default 'pending',
   amount numeric(20,2) not null,
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   reference text not null unique,
   description text,
   idempotency_key text,
@@ -91,7 +91,7 @@ create table if not exists public.ledger_entries (
   account_id uuid not null references public.bank_accounts(id) on delete restrict,
   entry_type text not null check (entry_type in ('debit', 'credit')),
   amount numeric(20,2) not null check (amount > 0),
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   created_at timestamptz not null default now(),
   constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}
 );
@@ -239,7 +239,7 @@ create table if not exists public.bank_transactions (
   transaction_type public.bank_transaction_type not null,
   status public.bank_transaction_status not null default 'pending',
   amount numeric(20,2) not null,
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   reference text not null unique,
   description text,
   idempotency_key text,
@@ -269,7 +269,7 @@ create table if not exists public.ledger_entries (
   account_id uuid not null references public.bank_accounts(id) on delete restrict,
   entry_type text not null check (entry_type in ('debit', 'credit')),
   amount numeric(20,2) not null check (amount > 0),
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   created_at timestamptz not null default now(),
   constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
 );
@@ -399,7 +399,7 @@ create table if not exists public.ledger_entries (
   account_id uuid not null references public.bank_accounts(id) on delete restrict,
   entry_type text not null check (entry_type in ('debit', 'credit')),
   amount numeric(20,2) not null check (amount > 0),
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   created_at timestamptz not null default now(),
   constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
 );
@@ -518,7 +518,7 @@ create table if not exists public.bank_transactions (
   transaction_type public.bank_transaction_type not null,
   status public.bank_transaction_status not null default 'pending',
   amount numeric(20,2) not null,
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   reference text not null unique,
   description text,
   idempotency_key text,
@@ -548,7 +548,7 @@ create table if not exists public.ledger_entries (
   account_id uuid not null references public.bank_accounts(id) on delete restrict,
   entry_type text not null check (entry_type in ('debit', 'credit')),
   amount numeric(20,2) not null check (amount > 0),
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   created_at timestamptz not null default now(),
   constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
 );
@@ -772,7 +772,7 @@ create table if not exists public.bank_transactions (
   transaction_type public.bank_transaction_type not null,
   status public.bank_transaction_status not null default 'pending',
   amount numeric(20,2) not null,
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   reference text not null unique,
   description text,
   idempotency_key text,
@@ -802,7 +802,7 @@ create table if not exists public.ledger_entries (
   account_id uuid not null references public.bank_accounts(id) on delete restrict,
   entry_type text not null check (entry_type in ('debit', 'credit')),
   amount numeric(20,2) not null check (amount > 0),
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   created_at timestamptz not null default now(),
   constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
 );
@@ -932,7 +932,7 @@ create table if not exists public.ledger_entries (
   account_id uuid not null references public.bank_accounts(id) on delete restrict,
   entry_type text not null check (entry_type in ('debit', 'credit')),
   amount numeric(20,2) not null check (amount > 0),
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   created_at timestamptz not null default now(),
   constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
 );
@@ -1051,7 +1051,7 @@ create table if not exists public.bank_transactions (
   transaction_type public.bank_transaction_type not null,
   status public.bank_transaction_status not null default 'pending',
   amount numeric(20,2) not null,
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   reference text not null unique,
   description text,
   idempotency_key text,
@@ -1081,7 +1081,7 @@ create table if not exists public.ledger_entries (
   account_id uuid not null references public.bank_accounts(id) on delete restrict,
   entry_type text not null check (entry_type in ('debit', 'credit')),
   amount numeric(20,2) not null check (amount > 0),
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   created_at timestamptz not null default now(),
   constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
 );
