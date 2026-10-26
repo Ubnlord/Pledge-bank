@@ -189,7 +189,8 @@ revoke all on public.bank_accounts from anon;
 revoke all on public.bank_transactions from anon;
 revoke all on public.profiles from anon;
 
-grant select, update on public.profiles to authenticated;
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
 grant select on public.bank_accounts to authenticated;
 grant select on public.bank_transactions to authenticated;
 
