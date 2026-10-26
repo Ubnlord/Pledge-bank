@@ -1,6 +1,6 @@
 -- PLEDGE BANK database foundation
--- Apply only to a dedicated PLEDGE BANK Supabase project after review.
--- This file is a schema draft; it has NOT been applied to any live database.
+-- Source definition for the initial PLEDGE BANK Supabase schema.
+-- Initial schema is applied to the dedicated project; follow-up index migration is recorded separately.
 -- No client role can create accounts or mutate financial records directly.
 begin;
 
@@ -81,6 +81,8 @@ create index if not exists bank_accounts_owner_created_idx
   on public.bank_accounts(owner_id, created_at desc);
 create index if not exists bank_transactions_account_created_idx
   on public.bank_transactions(account_id, created_at desc);
+create index if not exists bank_transactions_initiated_by_idx
+  on public.bank_transactions(initiated_by);
 
 -- Append-oriented ledger lines. Access is deliberately withheld from browser roles.
 create table if not exists public.ledger_entries (
