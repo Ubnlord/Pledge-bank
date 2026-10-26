@@ -53,3 +53,10 @@ The repository includes a GitHub Actions workflow at `.github/workflows/deploy-p
 - Then open **Actions → Deploy PLEDGE BANK to GitHub Pages** to check the deployment result. The first deployment may take a few minutes.
 
 The hosted site remains a non-functional visual preview; authentication and banking operations are not enabled. See the security and launch notes above before sharing it with customers.
+
+
+## Customer dashboard integration
+
+The customer sign-in, registration, password recovery, and dashboard pages now use the dedicated PLEDGE BANK Supabase project. The browser uses only the project's publishable key; row-level security limits account and transaction reads to the signed-in customer. Dashboard balances come from `get_my_account_balances()` and include only ledger entries attached to posted transactions. The dashboard never invents sample balances.
+
+**Important:** this is a real authenticated account-data dashboard, not a complete operational bank. New logins do not automatically receive accounts. Account provisioning and all money movement must remain in trusted, audited server-side workflows. Transfers, deposits, withdrawals, and Bitcoin orders are not enabled. Configure Supabase Auth site URL, allowed redirect URLs, email confirmation, and password recovery redirects before inviting customers. Do not enable live banking based on the dashboard alone.
