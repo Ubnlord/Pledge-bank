@@ -44,12 +44,1002 @@ create table if not exists public.bank_accounts (
   owner_id uuid not null references auth.users(id) on delete restrict,
   account_number text not null unique,
   account_type public.bank_account_type not null default 'current',
-  currency char(3) not null default 'NGN',
+  currency char(3) not null default 'USD',
   status public.bank_account_status not null default 'pending',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint bank_accounts_number_format check (account_number ~ '^[0-9]{10,20}$'),
-  constraint bank_accounts_currency_uppercase check (currency ~ '^[A-Z]{3}$')
+  constraint bank_accounts_currency_uppercase check (currency ~ '^[A-Z]{3}
+);
+
+-- Transaction metadata only. Amounts are immutable records, not a source of balance truth.
+-- A posted transaction must have balanced ledger entries before the posting workflow can be enabled.
+create table if not exists public.bank_transactions (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  initiated_by uuid references auth.users(id) on delete set null,
+  transaction_type public.bank_transaction_type not null,
+  status public.bank_transaction_status not null default 'pending',
+  amount numeric(20,2) not null,
+  currency char(3) not null default 'NGN',
+  reference text not null unique,
+  description text,
+  idempotency_key text,
+  created_at timestamptz not null default now(),
+  posted_at timestamptz,
+  constraint bank_transactions_amount_positive check (amount > 0),
+  constraint bank_transactions_currency_uppercase check (currency ~ '^[A-Z]{3}
+  constraint bank_transactions_reference_length check (char_length(reference) between 8 and 100),
+  constraint bank_transactions_description_length check (description is null or char_length(description) <= 240),
+  constraint bank_transactions_idempotency_length check (idempotency_key is null or char_length(idempotency_key) between 8 and 160)
+);
+
+create unique index if not exists bank_transactions_account_idempotency_unique
+  on public.bank_transactions(account_id, idempotency_key)
+  where idempotency_key is not null;
+create index if not exists bank_accounts_owner_created_idx
+  on public.bank_accounts(owner_id, created_at desc);
+create index if not exists bank_transactions_account_created_idx
+  on public.bank_transactions(account_id, created_at desc);
+create index if not exists bank_transactions_initiated_by_idx
+  on public.bank_transactions(initiated_by);
+
+-- Append-oriented ledger lines. Access is deliberately withheld from browser roles.
+create table if not exists public.ledger_entries (
+  id uuid primary key default gen_random_uuid(),
+  transaction_id uuid not null references public.bank_transactions(id) on delete restrict,
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  entry_type text not null check (entry_type in ('debit', 'credit')),
+  amount numeric(20,2) not null check (amount > 0),
+  currency char(3) not null default 'NGN',
+  created_at timestamptz not null default now(),
+  constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}
+);
+create index if not exists ledger_entries_account_created_idx
+  on public.ledger_entries(account_id, created_at desc);
+create index if not exists ledger_entries_transaction_idx
+  on public.ledger_entries(transaction_id);
+
+create or replace function private.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+revoke all on function private.set_updated_at() from public, anon, authenticated;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function private.set_updated_at();
+
+drop trigger if exists bank_accounts_set_updated_at on public.bank_accounts;
+create trigger bank_accounts_set_updated_at
+before update on public.bank_accounts
+for each row execute function private.set_updated_at();
+
+-- Create a minimal profile after an Auth user is created. User-editable metadata
+-- is only used as a display name, never as an authorization or role claim.
+create or replace function private.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 120)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row execute function private.handle_new_auth_user();
+
+alter table public.profiles enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.bank_transactions enable row level security;
+alter table public.ledger_entries enable row level security;
+
+-- Customers can read and update only their own basic profile.
+drop policy if exists "profile_read_self" on public.profiles;
+create policy "profile_read_self" on public.profiles
+for select to authenticated
+using ((select auth.uid()) = id);
+
+drop policy if exists "profile_update_self" on public.profiles;
+create policy "profile_update_self" on public.profiles
+for update to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+-- Customer browser sessions may only read their own account records.
+-- Account creation, account number assignment, status changes, and all balance
+-- changes must be performed by a trusted, audited server-side workflow.
+drop policy if exists "account_read_owner" on public.bank_accounts;
+create policy "account_read_owner" on public.bank_accounts
+for select to authenticated
+using ((select auth.uid()) = owner_id);
+
+-- Transaction history is readable only when the linked account belongs to the caller.
+drop policy if exists "transaction_read_account_owner" on public.bank_transactions;
+create policy "transaction_read_account_owner" on public.bank_transactions
+for select to authenticated
+using (
+  exists (
+    select 1
+    from public.bank_accounts a
+    where a.id = bank_transactions.account_id
+      and a.owner_id = (select auth.uid())
+  )
+);
+
+-- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.ledger_entries from public, anon, authenticated;
+revoke all on public.bank_accounts from anon;
+revoke all on public.bank_transactions from anon;
+revoke all on public.profiles from anon;
+
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
+grant select on public.bank_accounts to authenticated;
+grant select on public.bank_transactions to authenticated;
+
+
+-- Customer-safe read-only balance RPC. Ledger lines count only when their
+-- transaction is posted and their currency matches the account/transaction.
+create or replace function public.get_my_account_balances()
+returns table (account_id uuid, currency char(3), balance numeric)
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select a.id,
+         a.currency,
+         coalesce(sum(case le.entry_type when 'credit' then le.amount else -le.amount end), 0)::numeric(20,2) as balance
+  from public.bank_accounts as a
+  left join public.ledger_entries as le
+    on le.account_id = a.id
+   and le.currency = a.currency
+   and exists (
+     select 1 from public.bank_transactions as t
+     where t.id = le.transaction_id
+       and t.status = 'posted'
+       and t.currency = le.currency
+   )
+  where a.owner_id = auth.uid()
+  group by a.id, a.currency;
+$function$;
+revoke all on function public.get_my_account_balances() from public, anon;
+grant execute on function public.get_my_account_balances() to authenticated;
+
+commit;
+),
+  constraint bank_accounts_currency_supported check (currency in ('USD','EUR'))
+);
+
+-- Transaction metadata only. Amounts are immutable records, not a source of balance truth.
+-- A posted transaction must have balanced ledger entries before the posting workflow can be enabled.
+create table if not exists public.bank_transactions (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  initiated_by uuid references auth.users(id) on delete set null,
+  transaction_type public.bank_transaction_type not null,
+  status public.bank_transaction_status not null default 'pending',
+  amount numeric(20,2) not null,
+  currency char(3) not null default 'NGN',
+  reference text not null unique,
+  description text,
+  idempotency_key text,
+  created_at timestamptz not null default now(),
+  posted_at timestamptz,
+  constraint bank_transactions_amount_positive check (amount > 0),
+  constraint bank_transactions_currency_uppercase check (currency ~ '^[A-Z]{3}$'),
+  constraint bank_transactions_reference_length check (char_length(reference) between 8 and 100),
+  constraint bank_transactions_description_length check (description is null or char_length(description) <= 240),
+  constraint bank_transactions_idempotency_length check (idempotency_key is null or char_length(idempotency_key) between 8 and 160)
+);
+
+create unique index if not exists bank_transactions_account_idempotency_unique
+  on public.bank_transactions(account_id, idempotency_key)
+  where idempotency_key is not null;
+create index if not exists bank_accounts_owner_created_idx
+  on public.bank_accounts(owner_id, created_at desc);
+create index if not exists bank_transactions_account_created_idx
+  on public.bank_transactions(account_id, created_at desc);
+create index if not exists bank_transactions_initiated_by_idx
+  on public.bank_transactions(initiated_by);
+
+-- Append-oriented ledger lines. Access is deliberately withheld from browser roles.
+create table if not exists public.ledger_entries (
+  id uuid primary key default gen_random_uuid(),
+  transaction_id uuid not null references public.bank_transactions(id) on delete restrict,
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  entry_type text not null check (entry_type in ('debit', 'credit')),
+  amount numeric(20,2) not null check (amount > 0),
+  currency char(3) not null default 'NGN',
+  created_at timestamptz not null default now(),
+  constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
+);
+create index if not exists ledger_entries_account_created_idx
+  on public.ledger_entries(account_id, created_at desc);
+create index if not exists ledger_entries_transaction_idx
+  on public.ledger_entries(transaction_id);
+
+create or replace function private.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+revoke all on function private.set_updated_at() from public, anon, authenticated;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function private.set_updated_at();
+
+drop trigger if exists bank_accounts_set_updated_at on public.bank_accounts;
+create trigger bank_accounts_set_updated_at
+before update on public.bank_accounts
+for each row execute function private.set_updated_at();
+
+-- Create a minimal profile after an Auth user is created. User-editable metadata
+-- is only used as a display name, never as an authorization or role claim.
+create or replace function private.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 120)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row execute function private.handle_new_auth_user();
+
+alter table public.profiles enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.bank_transactions enable row level security;
+alter table public.ledger_entries enable row level security;
+
+-- Customers can read and update only their own basic profile.
+drop policy if exists "profile_read_self" on public.profiles;
+create policy "profile_read_self" on public.profiles
+for select to authenticated
+using ((select auth.uid()) = id);
+
+drop policy if exists "profile_update_self" on public.profiles;
+create policy "profile_update_self" on public.profiles
+for update to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+-- Customer browser sessions may only read their own account records.
+-- Account creation, account number assignment, status changes, and all balance
+-- changes must be performed by a trusted, audited server-side workflow.
+drop policy if exists "account_read_owner" on public.bank_accounts;
+create policy "account_read_owner" on public.bank_accounts
+for select to authenticated
+using ((select auth.uid()) = owner_id);
+
+-- Transaction history is readable only when the linked account belongs to the caller.
+drop policy if exists "transaction_read_account_owner" on public.bank_transactions;
+create policy "transaction_read_account_owner" on public.bank_transactions
+for select to authenticated
+using (
+  exists (
+    select 1
+    from public.bank_accounts a
+    where a.id = bank_transactions.account_id
+      and a.owner_id = (select auth.uid())
+  )
+);
+
+-- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.ledger_entries from public, anon, authenticated;
+revoke all on public.bank_accounts from anon;
+revoke all on public.bank_transactions from anon;
+revoke all on public.profiles from anon;
+
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
+grant select on public.bank_accounts to authenticated;
+grant select on public.bank_transactions to authenticated;
+
+commit;
+),
+  constraint bank_transactions_currency_supported check (currency in ('USD','EUR')),
+  constraint bank_transactions_reference_length check (char_length(reference) between 8 and 100),
+  constraint bank_transactions_description_length check (description is null or char_length(description) <= 240),
+  constraint bank_transactions_idempotency_length check (idempotency_key is null or char_length(idempotency_key) between 8 and 160)
+);
+
+create unique index if not exists bank_transactions_account_idempotency_unique
+  on public.bank_transactions(account_id, idempotency_key)
+  where idempotency_key is not null;
+create index if not exists bank_accounts_owner_created_idx
+  on public.bank_accounts(owner_id, created_at desc);
+create index if not exists bank_transactions_account_created_idx
+  on public.bank_transactions(account_id, created_at desc);
+create index if not exists bank_transactions_initiated_by_idx
+  on public.bank_transactions(initiated_by);
+
+-- Append-oriented ledger lines. Access is deliberately withheld from browser roles.
+create table if not exists public.ledger_entries (
+  id uuid primary key default gen_random_uuid(),
+  transaction_id uuid not null references public.bank_transactions(id) on delete restrict,
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  entry_type text not null check (entry_type in ('debit', 'credit')),
+  amount numeric(20,2) not null check (amount > 0),
+  currency char(3) not null default 'NGN',
+  created_at timestamptz not null default now(),
+  constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
+);
+create index if not exists ledger_entries_account_created_idx
+  on public.ledger_entries(account_id, created_at desc);
+create index if not exists ledger_entries_transaction_idx
+  on public.ledger_entries(transaction_id);
+
+create or replace function private.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+revoke all on function private.set_updated_at() from public, anon, authenticated;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function private.set_updated_at();
+
+drop trigger if exists bank_accounts_set_updated_at on public.bank_accounts;
+create trigger bank_accounts_set_updated_at
+before update on public.bank_accounts
+for each row execute function private.set_updated_at();
+
+-- Create a minimal profile after an Auth user is created. User-editable metadata
+-- is only used as a display name, never as an authorization or role claim.
+create or replace function private.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 120)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row execute function private.handle_new_auth_user();
+
+alter table public.profiles enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.bank_transactions enable row level security;
+alter table public.ledger_entries enable row level security;
+
+-- Customers can read and update only their own basic profile.
+drop policy if exists "profile_read_self" on public.profiles;
+create policy "profile_read_self" on public.profiles
+for select to authenticated
+using ((select auth.uid()) = id);
+
+drop policy if exists "profile_update_self" on public.profiles;
+create policy "profile_update_self" on public.profiles
+for update to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+-- Customer browser sessions may only read their own account records.
+-- Account creation, account number assignment, status changes, and all balance
+-- changes must be performed by a trusted, audited server-side workflow.
+drop policy if exists "account_read_owner" on public.bank_accounts;
+create policy "account_read_owner" on public.bank_accounts
+for select to authenticated
+using ((select auth.uid()) = owner_id);
+
+-- Transaction history is readable only when the linked account belongs to the caller.
+drop policy if exists "transaction_read_account_owner" on public.bank_transactions;
+create policy "transaction_read_account_owner" on public.bank_transactions
+for select to authenticated
+using (
+  exists (
+    select 1
+    from public.bank_accounts a
+    where a.id = bank_transactions.account_id
+      and a.owner_id = (select auth.uid())
+  )
+);
+
+-- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.ledger_entries from public, anon, authenticated;
+revoke all on public.bank_accounts from anon;
+revoke all on public.bank_transactions from anon;
+revoke all on public.profiles from anon;
+
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
+grant select on public.bank_accounts to authenticated;
+grant select on public.bank_transactions to authenticated;
+
+commit;
+),
+  constraint bank_accounts_currency_supported check (currency in ('USD','EUR'))
+);
+
+-- Transaction metadata only. Amounts are immutable records, not a source of balance truth.
+-- A posted transaction must have balanced ledger entries before the posting workflow can be enabled.
+create table if not exists public.bank_transactions (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  initiated_by uuid references auth.users(id) on delete set null,
+  transaction_type public.bank_transaction_type not null,
+  status public.bank_transaction_status not null default 'pending',
+  amount numeric(20,2) not null,
+  currency char(3) not null default 'NGN',
+  reference text not null unique,
+  description text,
+  idempotency_key text,
+  created_at timestamptz not null default now(),
+  posted_at timestamptz,
+  constraint bank_transactions_amount_positive check (amount > 0),
+  constraint bank_transactions_currency_uppercase check (currency ~ '^[A-Z]{3}$'),
+  constraint bank_transactions_reference_length check (char_length(reference) between 8 and 100),
+  constraint bank_transactions_description_length check (description is null or char_length(description) <= 240),
+  constraint bank_transactions_idempotency_length check (idempotency_key is null or char_length(idempotency_key) between 8 and 160)
+);
+
+create unique index if not exists bank_transactions_account_idempotency_unique
+  on public.bank_transactions(account_id, idempotency_key)
+  where idempotency_key is not null;
+create index if not exists bank_accounts_owner_created_idx
+  on public.bank_accounts(owner_id, created_at desc);
+create index if not exists bank_transactions_account_created_idx
+  on public.bank_transactions(account_id, created_at desc);
+create index if not exists bank_transactions_initiated_by_idx
+  on public.bank_transactions(initiated_by);
+
+-- Append-oriented ledger lines. Access is deliberately withheld from browser roles.
+create table if not exists public.ledger_entries (
+  id uuid primary key default gen_random_uuid(),
+  transaction_id uuid not null references public.bank_transactions(id) on delete restrict,
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  entry_type text not null check (entry_type in ('debit', 'credit')),
+  amount numeric(20,2) not null check (amount > 0),
+  currency char(3) not null default 'NGN',
+  created_at timestamptz not null default now(),
+  constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
+);
+create index if not exists ledger_entries_account_created_idx
+  on public.ledger_entries(account_id, created_at desc);
+create index if not exists ledger_entries_transaction_idx
+  on public.ledger_entries(transaction_id);
+
+create or replace function private.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+revoke all on function private.set_updated_at() from public, anon, authenticated;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function private.set_updated_at();
+
+drop trigger if exists bank_accounts_set_updated_at on public.bank_accounts;
+create trigger bank_accounts_set_updated_at
+before update on public.bank_accounts
+for each row execute function private.set_updated_at();
+
+-- Create a minimal profile after an Auth user is created. User-editable metadata
+-- is only used as a display name, never as an authorization or role claim.
+create or replace function private.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 120)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row execute function private.handle_new_auth_user();
+
+alter table public.profiles enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.bank_transactions enable row level security;
+alter table public.ledger_entries enable row level security;
+
+-- Customers can read and update only their own basic profile.
+drop policy if exists "profile_read_self" on public.profiles;
+create policy "profile_read_self" on public.profiles
+for select to authenticated
+using ((select auth.uid()) = id);
+
+drop policy if exists "profile_update_self" on public.profiles;
+create policy "profile_update_self" on public.profiles
+for update to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+-- Customer browser sessions may only read their own account records.
+-- Account creation, account number assignment, status changes, and all balance
+-- changes must be performed by a trusted, audited server-side workflow.
+drop policy if exists "account_read_owner" on public.bank_accounts;
+create policy "account_read_owner" on public.bank_accounts
+for select to authenticated
+using ((select auth.uid()) = owner_id);
+
+-- Transaction history is readable only when the linked account belongs to the caller.
+drop policy if exists "transaction_read_account_owner" on public.bank_transactions;
+create policy "transaction_read_account_owner" on public.bank_transactions
+for select to authenticated
+using (
+  exists (
+    select 1
+    from public.bank_accounts a
+    where a.id = bank_transactions.account_id
+      and a.owner_id = (select auth.uid())
+  )
+);
+
+-- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.ledger_entries from public, anon, authenticated;
+revoke all on public.bank_accounts from anon;
+revoke all on public.bank_transactions from anon;
+revoke all on public.profiles from anon;
+
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
+grant select on public.bank_accounts to authenticated;
+grant select on public.bank_transactions to authenticated;
+
+commit;
+),
+  constraint ledger_entries_currency_supported check (currency in ('USD','EUR'))
+);
+create index if not exists ledger_entries_account_created_idx
+  on public.ledger_entries(account_id, created_at desc);
+create index if not exists ledger_entries_transaction_idx
+  on public.ledger_entries(transaction_id);
+
+create or replace function private.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+revoke all on function private.set_updated_at() from public, anon, authenticated;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function private.set_updated_at();
+
+drop trigger if exists bank_accounts_set_updated_at on public.bank_accounts;
+create trigger bank_accounts_set_updated_at
+before update on public.bank_accounts
+for each row execute function private.set_updated_at();
+
+-- Create a minimal profile after an Auth user is created. User-editable metadata
+-- is only used as a display name, never as an authorization or role claim.
+create or replace function private.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 120)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row execute function private.handle_new_auth_user();
+
+alter table public.profiles enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.bank_transactions enable row level security;
+alter table public.ledger_entries enable row level security;
+
+-- Customers can read and update only their own basic profile.
+drop policy if exists "profile_read_self" on public.profiles;
+create policy "profile_read_self" on public.profiles
+for select to authenticated
+using ((select auth.uid()) = id);
+
+drop policy if exists "profile_update_self" on public.profiles;
+create policy "profile_update_self" on public.profiles
+for update to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+-- Customer browser sessions may only read their own account records.
+-- Account creation, account number assignment, status changes, and all balance
+-- changes must be performed by a trusted, audited server-side workflow.
+drop policy if exists "account_read_owner" on public.bank_accounts;
+create policy "account_read_owner" on public.bank_accounts
+for select to authenticated
+using ((select auth.uid()) = owner_id);
+
+-- Transaction history is readable only when the linked account belongs to the caller.
+drop policy if exists "transaction_read_account_owner" on public.bank_transactions;
+create policy "transaction_read_account_owner" on public.bank_transactions
+for select to authenticated
+using (
+  exists (
+    select 1
+    from public.bank_accounts a
+    where a.id = bank_transactions.account_id
+      and a.owner_id = (select auth.uid())
+  )
+);
+
+-- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.ledger_entries from public, anon, authenticated;
+revoke all on public.bank_accounts from anon;
+revoke all on public.bank_transactions from anon;
+revoke all on public.profiles from anon;
+
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
+grant select on public.bank_accounts to authenticated;
+grant select on public.bank_transactions to authenticated;
+
+commit;
+),
+  constraint bank_accounts_currency_supported check (currency in ('USD','EUR'))
+);
+
+-- Transaction metadata only. Amounts are immutable records, not a source of balance truth.
+-- A posted transaction must have balanced ledger entries before the posting workflow can be enabled.
+create table if not exists public.bank_transactions (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  initiated_by uuid references auth.users(id) on delete set null,
+  transaction_type public.bank_transaction_type not null,
+  status public.bank_transaction_status not null default 'pending',
+  amount numeric(20,2) not null,
+  currency char(3) not null default 'NGN',
+  reference text not null unique,
+  description text,
+  idempotency_key text,
+  created_at timestamptz not null default now(),
+  posted_at timestamptz,
+  constraint bank_transactions_amount_positive check (amount > 0),
+  constraint bank_transactions_currency_uppercase check (currency ~ '^[A-Z]{3}$'),
+  constraint bank_transactions_reference_length check (char_length(reference) between 8 and 100),
+  constraint bank_transactions_description_length check (description is null or char_length(description) <= 240),
+  constraint bank_transactions_idempotency_length check (idempotency_key is null or char_length(idempotency_key) between 8 and 160)
+);
+
+create unique index if not exists bank_transactions_account_idempotency_unique
+  on public.bank_transactions(account_id, idempotency_key)
+  where idempotency_key is not null;
+create index if not exists bank_accounts_owner_created_idx
+  on public.bank_accounts(owner_id, created_at desc);
+create index if not exists bank_transactions_account_created_idx
+  on public.bank_transactions(account_id, created_at desc);
+create index if not exists bank_transactions_initiated_by_idx
+  on public.bank_transactions(initiated_by);
+
+-- Append-oriented ledger lines. Access is deliberately withheld from browser roles.
+create table if not exists public.ledger_entries (
+  id uuid primary key default gen_random_uuid(),
+  transaction_id uuid not null references public.bank_transactions(id) on delete restrict,
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  entry_type text not null check (entry_type in ('debit', 'credit')),
+  amount numeric(20,2) not null check (amount > 0),
+  currency char(3) not null default 'NGN',
+  created_at timestamptz not null default now(),
+  constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
+);
+create index if not exists ledger_entries_account_created_idx
+  on public.ledger_entries(account_id, created_at desc);
+create index if not exists ledger_entries_transaction_idx
+  on public.ledger_entries(transaction_id);
+
+create or replace function private.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+revoke all on function private.set_updated_at() from public, anon, authenticated;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function private.set_updated_at();
+
+drop trigger if exists bank_accounts_set_updated_at on public.bank_accounts;
+create trigger bank_accounts_set_updated_at
+before update on public.bank_accounts
+for each row execute function private.set_updated_at();
+
+-- Create a minimal profile after an Auth user is created. User-editable metadata
+-- is only used as a display name, never as an authorization or role claim.
+create or replace function private.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 120)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row execute function private.handle_new_auth_user();
+
+alter table public.profiles enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.bank_transactions enable row level security;
+alter table public.ledger_entries enable row level security;
+
+-- Customers can read and update only their own basic profile.
+drop policy if exists "profile_read_self" on public.profiles;
+create policy "profile_read_self" on public.profiles
+for select to authenticated
+using ((select auth.uid()) = id);
+
+drop policy if exists "profile_update_self" on public.profiles;
+create policy "profile_update_self" on public.profiles
+for update to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+-- Customer browser sessions may only read their own account records.
+-- Account creation, account number assignment, status changes, and all balance
+-- changes must be performed by a trusted, audited server-side workflow.
+drop policy if exists "account_read_owner" on public.bank_accounts;
+create policy "account_read_owner" on public.bank_accounts
+for select to authenticated
+using ((select auth.uid()) = owner_id);
+
+-- Transaction history is readable only when the linked account belongs to the caller.
+drop policy if exists "transaction_read_account_owner" on public.bank_transactions;
+create policy "transaction_read_account_owner" on public.bank_transactions
+for select to authenticated
+using (
+  exists (
+    select 1
+    from public.bank_accounts a
+    where a.id = bank_transactions.account_id
+      and a.owner_id = (select auth.uid())
+  )
+);
+
+-- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.ledger_entries from public, anon, authenticated;
+revoke all on public.bank_accounts from anon;
+revoke all on public.bank_transactions from anon;
+revoke all on public.profiles from anon;
+
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
+grant select on public.bank_accounts to authenticated;
+grant select on public.bank_transactions to authenticated;
+
+commit;
+),
+  constraint bank_transactions_currency_supported check (currency in ('USD','EUR')),
+  constraint bank_transactions_reference_length check (char_length(reference) between 8 and 100),
+  constraint bank_transactions_description_length check (description is null or char_length(description) <= 240),
+  constraint bank_transactions_idempotency_length check (idempotency_key is null or char_length(idempotency_key) between 8 and 160)
+);
+
+create unique index if not exists bank_transactions_account_idempotency_unique
+  on public.bank_transactions(account_id, idempotency_key)
+  where idempotency_key is not null;
+create index if not exists bank_accounts_owner_created_idx
+  on public.bank_accounts(owner_id, created_at desc);
+create index if not exists bank_transactions_account_created_idx
+  on public.bank_transactions(account_id, created_at desc);
+create index if not exists bank_transactions_initiated_by_idx
+  on public.bank_transactions(initiated_by);
+
+-- Append-oriented ledger lines. Access is deliberately withheld from browser roles.
+create table if not exists public.ledger_entries (
+  id uuid primary key default gen_random_uuid(),
+  transaction_id uuid not null references public.bank_transactions(id) on delete restrict,
+  account_id uuid not null references public.bank_accounts(id) on delete restrict,
+  entry_type text not null check (entry_type in ('debit', 'credit')),
+  amount numeric(20,2) not null check (amount > 0),
+  currency char(3) not null default 'NGN',
+  created_at timestamptz not null default now(),
+  constraint ledger_entries_currency_uppercase check (currency ~ '^[A-Z]{3}$')
+);
+create index if not exists ledger_entries_account_created_idx
+  on public.ledger_entries(account_id, created_at desc);
+create index if not exists ledger_entries_transaction_idx
+  on public.ledger_entries(transaction_id);
+
+create or replace function private.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+revoke all on function private.set_updated_at() from public, anon, authenticated;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function private.set_updated_at();
+
+drop trigger if exists bank_accounts_set_updated_at on public.bank_accounts;
+create trigger bank_accounts_set_updated_at
+before update on public.bank_accounts
+for each row execute function private.set_updated_at();
+
+-- Create a minimal profile after an Auth user is created. User-editable metadata
+-- is only used as a display name, never as an authorization or role claim.
+create or replace function private.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    left(coalesce(new.raw_user_meta_data ->> 'display_name', ''), 120)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row execute function private.handle_new_auth_user();
+
+alter table public.profiles enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.bank_transactions enable row level security;
+alter table public.ledger_entries enable row level security;
+
+-- Customers can read and update only their own basic profile.
+drop policy if exists "profile_read_self" on public.profiles;
+create policy "profile_read_self" on public.profiles
+for select to authenticated
+using ((select auth.uid()) = id);
+
+drop policy if exists "profile_update_self" on public.profiles;
+create policy "profile_update_self" on public.profiles
+for update to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+-- Customer browser sessions may only read their own account records.
+-- Account creation, account number assignment, status changes, and all balance
+-- changes must be performed by a trusted, audited server-side workflow.
+drop policy if exists "account_read_owner" on public.bank_accounts;
+create policy "account_read_owner" on public.bank_accounts
+for select to authenticated
+using ((select auth.uid()) = owner_id);
+
+-- Transaction history is readable only when the linked account belongs to the caller.
+drop policy if exists "transaction_read_account_owner" on public.bank_transactions;
+create policy "transaction_read_account_owner" on public.bank_transactions
+for select to authenticated
+using (
+  exists (
+    select 1
+    from public.bank_accounts a
+    where a.id = bank_transactions.account_id
+      and a.owner_id = (select auth.uid())
+  )
+);
+
+-- No RLS policies are created for ledger_entries: browser roles receive no access.
+revoke all on public.ledger_entries from public, anon, authenticated;
+revoke all on public.bank_accounts from anon;
+revoke all on public.bank_transactions from anon;
+revoke all on public.profiles from anon;
+
+grant select on public.profiles to authenticated;
+grant update (display_name, phone) on public.profiles to authenticated;
+grant select on public.bank_accounts to authenticated;
+grant select on public.bank_transactions to authenticated;
+
+commit;
+),
+  constraint bank_accounts_currency_supported check (currency in ('USD','EUR'))
 );
 
 -- Transaction metadata only. Amounts are immutable records, not a source of balance truth.
