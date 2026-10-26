@@ -216,6 +216,7 @@ as $function$
    and exists (
      select 1 from public.bank_transactions as t
      where t.id = le.transaction_id
+       and t.account_id = le.account_id
        and t.status = 'posted'
        and t.currency = le.currency
    )
