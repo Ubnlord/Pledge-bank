@@ -34,3 +34,8 @@ The admin panel will live in a separate repository. It must use server-enforced 
 - Migration `20261026_usd_eur_dashboard_balances` was applied to production: currency fields now default to USD and database constraints permit only USD/EUR. The RPC returns only balances for accounts owned by `auth.uid()`; execute is granted only to authenticated users.
 - Before customer rollout, configure Auth Site URL and Redirect URLs for the deployed origin and its dashboard/reset-password pages; confirm email delivery, password recovery, and row isolation with two separate test users.
 - No account provisioning, transfers, deposits, withdrawals, card services, or Bitcoin purchases are enabled. No client can write account, transaction, or ledger rows. A ledger-backed dashboard is not proof of a complete or regulated banking service.
+
+
+## Explicit customer table grants
+
+A final least-privilege migration explicitly revokes all table-level privileges from `public`, `anon`, and `authenticated` on profiles, bank accounts, bank transactions, and ledger entries, then grants back only the intended profile select/column update and account/transaction select permissions. Database privilege checks confirmed customers cannot insert or update account/transaction rows and cannot read ledger entries. RLS still limits visible profile/account/transaction rows to the authenticated owner.
