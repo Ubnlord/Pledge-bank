@@ -1,0 +1,9 @@
+-- PLEDGE BANK seed data
+-- Intentionally contains no sample customers, credentials, account numbers,
+-- balances, deposits, or ledger entries. Never seed fabricated financial data
+-- into a production environment.
+--
+-- For local development, create test identities through Supabase Auth and use
+-- a dedicated non-production project. Provision test accounts through a
+-- server-side development-only fixture after authorization and ledger tests
+-- are in place. Never enable test fixtures in production.
