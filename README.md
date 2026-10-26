@@ -1,6 +1,6 @@
 # PLEDGE BANK — Online Banking Website
 
-This repository contains the initial public-facing website for PLEDGE BANK.
+This repository contains the public-facing PLEDGE BANK website preview. The intended account currencies are USD and EUR only; local-currency wallets are not offered. A Buy Bitcoin entry point is included as a preview, but Bitcoin purchases are not connected or enabled.
 
 ## Included
 - Responsive landing page and brand styling
