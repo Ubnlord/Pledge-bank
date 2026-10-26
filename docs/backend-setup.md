@@ -3,7 +3,7 @@
 ## Current state
 The dedicated Supabase project is `iilxerppufschjdcsayn` (`https://iilxerppufschjdcsayn.supabase.co`). The initial schema migration `pledge_bank_initial_schema` was applied on 2026-10-26, and the four core tables were verified through the Supabase project tools. A follow-up migration added an index for `bank_transactions.initiated_by`.
 
-The public website remains a static preview. Supabase Auth has not been connected to the website, the two-user isolation tests are still outstanding, and no financial operations are enabled. Do not represent the site as a functioning bank.
+The customer website now uses Supabase Auth for sign-in, registration, password recovery, and authenticated dashboard reads. The Supabase Auth site URL/redirect allowlist and end-to-end auth flows still require deployment-specific configuration and testing. Two-user isolation tests remain outstanding, and no financial operations are enabled. Do not represent the site as a functioning bank.
 
 ## Before enabling authentication
 1. Configure Supabase Auth email confirmation, password recovery, allowed redirect URLs, rate limits, and any required MFA policy.
@@ -11,7 +11,7 @@ The public website remains a static preview. Supabase Auth has not been connecte
 3. Run the two-user isolation tests in `docs/database-verification.md` using test accounts and test-only records.
 4. Confirm authenticated browser users cannot create/update bank accounts or transactions, cannot read/write ledger entries, and cannot read other users' records.
 5. Check Supabase security and performance advisors. The ledger table intentionally has RLS enabled and no browser policies because browser roles are denied all privileges; treat this as deliberate defense in depth.
-6. Connect the login, registration, and recovery screens to Supabase Auth only after redirect configuration and test identities are ready.
+6. Configure Auth Site URL and allowed Redirect URLs for the deployed website, including `pages/dashboard.html` and `pages/reset-password.html`; then test sign-in, email confirmation, and recovery end to end.
 7. Add server-side account provisioning and financial transaction workflows only after ledger balancing, idempotency, transaction authorization, limits, reconciliation, and audit tests exist.
 
 ## Data model boundaries
