@@ -28,7 +28,7 @@ as $function$
   left join public.ledger_entries as le
     on le.account_id = a.id and le.currency = a.currency
    and exists (select 1 from public.bank_transactions as t
-               where t.id = le.transaction_id and t.status = 'posted' and t.currency = le.currency)
+               where t.id = le.transaction_id and t.account_id = le.account_id and t.status = 'posted' and t.currency = le.currency)
   where a.owner_id = auth.uid()
   group by a.id, a.currency;
 $function$;
