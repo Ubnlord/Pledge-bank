@@ -1,4 +1,5 @@
 PLEDGE BANK changelog
 2026-10-26 — Initial public website foundation: responsive landing page, brand mark, public informational pages, account-flow previews, and initial security/legal notices. No backend or live banking functions are connected.
 2026-10-26 — Added email-verification and not-found pages, favicon, minimal local preview scripts, and a clearly marked customer-dashboard concept page.
-2026-10-26 — Added proposed database schema for profiles, bank accounts, transaction metadata, and restricted ledger entries; backend setup guide; customer guide; and environment-variable template. Schema not applied to any live database; authentication and financial operations remain disabled.
+2026-10-26 — Added schema source, backend setup guide, customer guide, and environment-variable template. Applied migration pledge_bank_initial_schema to the dedicated PLEDGE BANK Supabase project; verified four core tables, RLS status, and migration record.
+2026-10-26 — Added bank_transactions.initiated_by index in a follow-up migration after the performance advisor identified the unindexed foreign key. Two-user isolation tests and website Auth integration remain outstanding.
