@@ -1,2 +1,3 @@
 PLEDGE BANK changelog
 2026-10-26 — Initial public website foundation: responsive landing page, brand mark, public informational pages, account-flow previews, and initial security/legal notices. No backend or live banking functions are connected.
+2026-10-26 — Added email-verification and not-found pages, favicon, minimal local preview scripts, and a clearly marked customer-dashboard concept page.
