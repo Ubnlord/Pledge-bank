@@ -25,8 +25,17 @@ Do not collect real customer information until a production backend and security
 - Encryption in transit and at rest, secret management, backups, monitoring, and incident response
 - Automated tests, accessibility checks, and security review
 
-## Planned next phase
-Build the authenticated customer dashboard and API/database integration only after selecting the production backend and confirming the appropriate regulated service model. The separate PLEDGE BANK admin panel will be developed in its own repository and must use server-enforced administrator authorization, separate from ordinary customer access.
+## Backend foundation added
+- `database/schema.sql` — proposed initial Supabase schema with customer-owned profiles, account metadata, transaction metadata, and a restricted ledger-entry table.
+- `database/seed-data.sql` — intentionally contains no fabricated customer or financial data.
+- `docs/database-verification.md` — row-level authorization and database privilege test checklist.
+- `docs/backend-setup.md` — staged setup instructions for a dedicated PLEDGE BANK Supabase project.
+- `backend/config.env.example` — environment-variable names only; no credentials.
+
+**The schema is not deployed.** No connected Supabase project was identified for PLEDGE BANK, so no other project was modified and no new paid project was created. Login, registration, account provisioning, and financial operations remain disabled until a dedicated backend is selected and tested.
+
+## Next implementation phase
+Create or select a dedicated PLEDGE BANK Supabase project, apply the reviewed schema in a non-production environment, configure Auth, and pass the two-user isolation tests in `docs/database-verification.md`. Then wire login, registration, email verification, and password recovery to Supabase Auth. Only after that should the authenticated customer dashboard and server-side financial workflows be implemented. The separate PLEDGE BANK admin panel will be developed in its own repository and must use server-enforced administrator authorization, separate from ordinary customer access.
 
 ## Repository layout
 - `public/index.html` — public landing page
