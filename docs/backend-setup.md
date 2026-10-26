@@ -1,23 +1,24 @@
 # PLEDGE BANK backend setup
 
 ## Current state
-The public website is still a static preview. The SQL in `database/schema.sql` is a proposed initial data model; it has not been applied to a Supabase project. The connected Supabase accounts did not contain a project named PLEDGE BANK, so no unrelated project was modified and no new billable project was created.
+The dedicated Supabase project is `iilxerppufschjdcsayn` (`https://iilxerppufschjdcsayn.supabase.co`). The initial schema migration `pledge_bank_initial_schema` was applied on 2026-10-26, and the four core tables were verified through the Supabase project tools. A follow-up migration added an index for `bank_transactions.initiated_by`.
 
-## Before connecting authentication
-1. Create or select a dedicated Supabase project for PLEDGE BANK (not Global-Beldex, Pledge-Invest, or the trading bot project).
-2. Confirm the regulated service model, legal entity, customer eligibility, data residency, and required compliance controls.
-3. Review `database/schema.sql` with the target project configuration and apply it only to a dedicated non-production environment first.
-4. Verify that row-level security is enabled for every customer-facing table and that customer access policies check ownership, not only sign-in status.
-5. Create two test users and prove each user can read only their own profile, accounts, and transactions. Confirm direct account writes, transaction writes, ledger reads/writes, and role escalation are denied.
-6. Configure email verification, password recovery, redirect allowlists, rate limits, and MFA policies in Supabase Auth.
-7. Store the Supabase project URL and publishable key in the frontend deployment environment. A publishable key may be public; never put a service-role/secret key in browser code or commit secrets.
-8. Add server-side account provisioning and financial transaction workflows only after the ledger, idempotency, balanced entries, transaction authorization, and reconciliation tests are implemented.
+The public website remains a static preview. Supabase Auth has not been connected to the website, the two-user isolation tests are still outstanding, and no financial operations are enabled. Do not represent the site as a functioning bank.
+
+## Before enabling authentication
+1. Configure Supabase Auth email confirmation, password recovery, allowed redirect URLs, rate limits, and any required MFA policy.
+2. Use only the project URL and a publishable key in public frontend code. Never place a service-role/secret key in browser code or commit secrets.
+3. Run the two-user isolation tests in `docs/database-verification.md` using test accounts and test-only records.
+4. Confirm authenticated browser users cannot create/update bank accounts or transactions, cannot read/write ledger entries, and cannot read other users' records.
+5. Check Supabase security and performance advisors. The ledger table intentionally has RLS enabled and no browser policies because browser roles are denied all privileges; treat this as deliberate defense in depth.
+6. Connect the login, registration, and recovery screens to Supabase Auth only after redirect configuration and test identities are ready.
+7. Add server-side account provisioning and financial transaction workflows only after ledger balancing, idempotency, transaction authorization, limits, reconciliation, and audit tests exist.
 
 ## Data model boundaries
-- `profiles`: a small set of customer profile fields; row access is limited to the matching Auth user.
+- `profiles`: minimal profile fields; row access is limited to the matching Auth user.
 - `bank_accounts`: account metadata; customers can read only their own accounts. Browser clients cannot create or update accounts.
 - `bank_transactions`: transaction metadata; customers can read only transactions linked to their own accounts. Browser clients cannot create or update financial transactions.
-- `ledger_entries`: accounting entries; no browser-role privileges are granted. This table is not a complete ledger implementation by itself.
+- `ledger_entries`: accounting entries; no browser-role privileges are granted. This table is not a complete ledger/posting implementation by itself.
 
 ## Financial safety
 No balance column is stored in the browser-facing schema. A future balance must be derived from a server-controlled, reconciled ledger or a trusted banking provider. Do not add client-side balance updates, client-submitted account numbers, or direct browser writes to financial records.
