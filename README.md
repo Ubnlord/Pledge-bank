@@ -25,17 +25,17 @@ Do not collect real customer information until a production backend and security
 - Encryption in transit and at rest, secret management, backups, monitoring, and incident response
 - Automated tests, accessibility checks, and security review
 
-## Backend foundation added
-- `database/schema.sql` — proposed initial Supabase schema with customer-owned profiles, account metadata, transaction metadata, and a restricted ledger-entry table.
-- `database/seed-data.sql` — intentionally contains no fabricated customer or financial data.
+## Backend foundation
+- `database/schema.sql` — schema source for customer profiles, account metadata, transaction metadata, and restricted ledger entries.
+- `database/seed-data.sql` — no fabricated customer or financial data.
 - `docs/database-verification.md` — row-level authorization and database privilege test checklist.
-- `docs/backend-setup.md` — staged setup instructions for a dedicated PLEDGE BANK Supabase project.
+- `docs/backend-setup.md` — staged setup and verification notes.
 - `backend/config.env.example` — environment-variable names only; no credentials.
 
-**The schema is not deployed.** No connected Supabase project was identified for PLEDGE BANK, so no other project was modified and no new paid project was created. Login, registration, account provisioning, and financial operations remain disabled until a dedicated backend is selected and tested.
+**Supabase schema deployed:** the initial migration was applied to the dedicated PLEDGE BANK project on 2026-10-26 and verified by listing the four tables, their columns, RLS status, and the migration record. A foreign-key performance index was added in a follow-up migration. The two-user isolation tests have not yet been run. Supabase Auth is not yet wired to the website, and no financial operations are enabled.
 
 ## Next implementation phase
-Create or select a dedicated PLEDGE BANK Supabase project, apply the reviewed schema in a non-production environment, configure Auth, and pass the two-user isolation tests in `docs/database-verification.md`. Then wire login, registration, email verification, and password recovery to Supabase Auth. Only after that should the authenticated customer dashboard and server-side financial workflows be implemented. The separate PLEDGE BANK admin panel will be developed in its own repository and must use server-enforced administrator authorization, separate from ordinary customer access.
+Configure Auth settings and email redirects, wire registration/login/password recovery to Supabase Auth, and pass the two-user isolation tests in `docs/database-verification.md`. Then implement an authenticated customer dashboard. Server-side financial workflows must be separately designed and tested before any deposits, transfers, or balance displays become live. The separate PLEDGE BANK admin panel will be developed in its own repository and must use server-enforced administrator authorization, separate from ordinary customer access.
 
 ## Repository layout
 - `public/index.html` — public landing page
