@@ -14,7 +14,7 @@ This repository contains the public-facing PLEDGE BANK website preview. The inte
 The current site is static HTML, CSS, and JavaScript. Open `public/index.html` in a browser or serve the `public/` directory with any static HTTP server.
 
 ## Important security and launch status
-**This is not a complete operational bank.** Customer sign-in, registration, password recovery, profile/account/transaction reads, and ledger-derived balances are connected to the dedicated Supabase project. Transfers, deposits, withdrawals, card services, Bitcoin orders, and customer support submissions are not enabled. Landing-page marketing visuals remain illustrative.
+**This is not a complete operational bank.** Customer sign-in, registration, password recovery, profile/account/transaction reads, and ledger-derived balances are connected to the dedicated Supabase project. Transfers, deposits, withdrawals, card services, and Bitcoin orders are not enabled. Authenticated customers can submit support requests; replies and resolution are handled through the trusted admin Edge Function. Landing-page marketing visuals remain illustrative.
 
 Do not collect real customer information until a production backend and security controls are implemented and independently tested. Before enabling banking services, implement and verify:
 - A trusted, appropriately licensed banking/payment partner and legal/compliance disclosures
@@ -60,3 +60,14 @@ The hosted site remains a non-functional visual preview; authentication and bank
 The customer sign-in, registration, password recovery, and dashboard pages now use the dedicated PLEDGE BANK Supabase project. The browser uses only the project's publishable key; row-level security limits account and transaction reads to the signed-in customer. Dashboard balances come from `get_my_account_balances()` and include only ledger entries attached to posted transactions. The dashboard never invents sample balances.
 
 **Important:** this is a real authenticated account-data dashboard, not a complete operational bank. New logins do not automatically receive accounts. Account provisioning and all money movement must remain in trusted, audited server-side workflows. Transfers, deposits, withdrawals, and Bitcoin orders are not enabled. Configure Supabase Auth site URL, allowed redirect URLs, email confirmation, and password recovery redirects before inviting customers. Do not enable live banking based on the dashboard alone.
+
+
+## Support and notification workflows
+
+- Customer settings, support requests, support replies, and customer notifications are stored in RLS-protected tables.
+- The deployed Supabase Edge Function `pledge-bank-admin` requires a verified JWT and a trusted `app_metadata.role=admin` (or `app_metadata.is_admin=true`) claim. It can list support requests, reply, resolve requests, and create notifications.
+- Edge Function source: `supabase/functions/pledge-bank-admin/index.ts`.
+- The separate admin web interface has not been added to this customer repository. The exact admin repository URL is needed to implement the admin UI in the correct repo.
+- Database permission checks confirmed: anonymous users cannot submit support requests; customers cannot create notifications or edit notification text; customers can only mark notifications read.
+
+See `docs/dashboard-end-to-end-checklist.md` for manual browser checks still required. No live authenticated browser test has been claimed.
