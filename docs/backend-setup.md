@@ -39,3 +39,8 @@ The admin panel will live in a separate repository. It must use server-enforced 
 ## Explicit customer table grants
 
 A final least-privilege migration explicitly revokes all table-level privileges from `public`, `anon`, and `authenticated` on profiles, bank accounts, bank transactions, and ledger entries, then grants back only the intended profile select/column update and account/transaction select permissions. Database privilege checks confirmed customers cannot insert or update account/transaction rows and cannot read ledger entries. RLS still limits visible profile/account/transaction rows to the authenticated owner.
+
+
+## Customer dashboard settings, notifications, and support
+
+Migration `20261027_customer_dashboard_settings_notifications_support.sql` creates `customer_settings`, `support_requests`, and `customer_notifications` with row-level security. Customers can edit only their own preferences, create and read their own support requests, and read their own notifications while updating only the notification `read_at` field. Notification records must be created by a trusted server/admin workflow; the customer browser cannot fabricate them. Support requests are stored in Supabase but an admin response/handling console is not implemented here. Verify the three features using an authenticated test account before production rollout.
