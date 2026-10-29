@@ -58,3 +58,15 @@
  .faq-section{grid-template-columns:1fr;gap:22px;padding:68px 6%}
  .faq-heading h2{font-size:42px}
 }
+
+/* Navigation and content polish, October 2026 */
+.main-nav{gap:clamp(12px,1.7vw,25px)}
+.main-nav a{white-space:nowrap}
+.ticker>div>span{min-width:21px;text-align:center;font-weight:800}
+.security-points{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0 9.5% 88px;background:#fff}
+.security-point{border:1px solid var(--line);border-radius:14px;padding:22px;background:#fcfdfb}
+.security-point>span{display:grid;place-items:center;width:27px;height:27px;border-radius:8px;background:#e7f2dd;color:#3d7148;font-size:9px;font-weight:800;margin-bottom:18px}
+.security-point strong{display:block;font-family:Manrope,sans-serif;font-size:14px;letter-spacing:-.03em}
+.security-point p{font-size:11px;line-height:1.8;color:#718078;margin:8px 0 0}
+@media(max-width:1000px){.main-nav{gap:10px;font-size:11px}.header-actions{gap:12px}}
+@media(max-width:760px){.main-nav{gap:20px}.security-points{grid-template-columns:1fr;padding:0 6% 65px;gap:10px}.security-point{padding:19px}.security-point>span{margin-bottom:12px}}
