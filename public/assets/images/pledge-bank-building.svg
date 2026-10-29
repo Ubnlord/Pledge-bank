@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+<title id="title">PLEDGE BANK headquarters</title><desc id="desc">A polished architectural illustration of a modern bank headquarters with PLEDGE BANK signage.</desc>
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#a9c9df"/><stop offset="1" stop-color="#e6e9df"/></linearGradient>
+ <linearGradient id="stone" x2="0" y2="1"><stop stop-color="#f7f4e9"/><stop offset="1" stop-color="#b8c3c5"/></linearGradient>
+ <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#274b5b"/><stop offset=".5" stop-color="#102b3a"/><stop offset="1" stop-color="#517483"/></linearGradient>
+ <linearGradient id="sign" x2="0" y2="1"><stop stop-color="#183d3b"/><stop offset="1" stop-color="#071e23"/></linearGradient>
+ <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#7f9692"/><stop offset="1" stop-color="#253d3a"/></linearGradient>
+ <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#122a2d" flood-opacity=".22"/></filter>
+ <pattern id="windows" width="66" height="78" patternUnits="userSpaceOnUse"><rect width="54" height="65" x="6" y="6" rx="2" fill="url(#glass)"/><path d="M33 6v65M6 36h54" stroke="#b7cbd0" stroke-opacity=".55" stroke-width="3"/><path d="M11 11h18" stroke="#fff" stroke-opacity=".28" stroke-width="3"/></pattern>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<g fill="#fff" opacity=".24"><ellipse cx="235" cy="125" rx="190" ry="32"/><ellipse cx="1190" cy="115" rx="240" ry="26"/></g>
+<path d="M0 625 1600 570v330H0Z" fill="url(#ground)"/>
+<path d="M0 715 1600 670M0 800 1600 760M230 900l240-230m170 230 110-230m230 230 40-230m260 230-70-230" stroke="#d3dfd7" stroke-opacity=".22" stroke-width="3"/>
+<g filter="url(#shadow)">
+ <path d="M120 330h1360v360H120z" fill="url(#stone)"/>
+ <path d="M165 265h1270v425H165z" fill="#d7dedc"/>
+ <path d="M205 305h1190v385H205z" fill="url(#windows)"/>
+ <path d="M95 335 240 210h1120l145 125z" fill="#e9e8df"/>
+ <path d="M125 330h1350v25H125z" fill="#9caeb0"/>
+ <path d="M300 245h1000v445H300z" fill="url(#stone)"/>
+ <path d="M345 360h910v330H345z" fill="url(#glass)"/>
+ <path d="M365 375h870v295H365z" fill="url(#windows)" opacity=".85"/>
+ <path d="M320 342h960v27H320z" fill="#f9f5e8"/>
+ <path d="M290 690h1020v-22H290z" fill="#d7e0dc"/>
+ <path d="M425 390h750v300H425z" fill="#0b2732" opacity=".25"/>
+ <g fill="url(#stone)" stroke="#9eaeae" stroke-width="2">
+  <path d="M400 375h40v315h-40z"/><path d="M555 375h40v315h-40z"/><path d="M710 375h40v315h-40z"/><path d="M865 375h40v315h-40z"/><path d="M1020 375h40v315h-40z"/><path d="M1175 375h40v315h-40z"/>
+  <path d="M380 370h80v16h-80z"/><path d="M535 370h80v16h-80z"/><path d="M690 370h80v16h-80z"/><path d="M845 370h80v16h-80z"/><path d="M1000 370h80v16h-80z"/><path d="M1155 370h80v16h-80z"/>
+ </g>
+ <path d="M520 530h560v160H520z" fill="#c6d3d2"/>
+ <path d="M545 540h510v150H545z" fill="url(#glass)"/>
+ <path d="M800 540v150" stroke="#c6d5d4" stroke-width="6"/>
+ <path d="M545 602h510" stroke="#c6d5d4" stroke-width="4"/>
+ <path d="M260 690h1080l-35 35H295z" fill="#f4f2e8"/>
+ <path d="M285 725h1030l-35 25H320z" fill="#a6b8b8"/>
+ <path d="M315 750h970l-30 22H345z" fill="#f4f2e8"/>
+ <path d="M345 772h910l-30 21H375z" fill="#a6b8b8"/>
+ <path d="M375 793h850l-28 22H403z" fill="#f4f2e8"/>
+ <rect x="320" y="265" width="960" height="112" rx="5" fill="url(#sign)" stroke="#c6a86a" stroke-width="4"/>
+ <g transform="translate(375 287)"><path d="M0 5h44c29 0 43 15 43 35S73 75 44 75H26v-18h18c13 0 19-6 19-17S57 23 44 23H18v66H0z" fill="#d9b66e"/><path d="M0 5h18v84H0z" fill="#f1d28a"/></g>
+ <text x="475" y="341" font-family="Arial,Helvetica,sans-serif" font-size="59" font-weight="800" letter-spacing="2" fill="#f7f4eb">PLEDGE</text>
+ <text x="765" y="341" font-family="Arial,Helvetica,sans-serif" font-size="59" font-weight="800" letter-spacing="2" fill="#d9b66e">BANK</text>
+</g>
+<g transform="translate(1280 520)" filter="url(#shadow)">
+ <path d="M0 32 235 0v245H0z" fill="url(#sign)" stroke="#d9b66e" stroke-width="4"/>
+ <path d="M28 53h48v70H28z" fill="#d9b66e"/><path d="M38 63h28v50H38z" fill="#153e3a"/>
+ <text x="25" y="158" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="800" fill="#fff">PLEDGE</text><text x="25" y="190" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="800" fill="#d9b66e">BANK</text>
+</g>
+<g fill="#264a3b"><circle cx="140" cy="690" r="42"/><circle cx="190" cy="680" r="55"/><circle cx="1450" cy="700" r="45"/><circle cx="1505" cy="682" r="59"/></g>
+<g fill="#4e7959"><circle cx="132" cy="670" r="32"/><circle cx="188" cy="657" r="40"/><circle cx="1446" cy="675" r="33"/><circle cx="1508" cy="658" r="42"/></g>
+<g fill="#b9d19b"><circle cx="121" cy="663" r="10"/><circle cx="175" cy="646" r="12"/><circle cx="1434" cy="665" r="10"/><circle cx="1501" cy="644" r="12"/></g>
+<g fill="#f3d89a"><circle cx="90" cy="735" r="6"/><circle cx="220" cy="738" r="5"/><circle cx="1370" cy="735" r="6"/><circle cx="1540" cy="740" r="5"/></g>
+</svg>
